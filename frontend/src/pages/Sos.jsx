@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useLocation } from "../context/LocationContext";
 
 export default function Sos() {
   const [panic, setPanic] = useState(false);
+  const { location } = useLocation();
 
   return (
     <div style={container(panic)}>
@@ -69,7 +71,9 @@ export default function Sos() {
       • Follow on-screen instructions
     </p>
     <p style={{ fontSize: 12, opacity: 0.75, marginTop: 24 }}>
-  Your location has been shared with trusted contacts.
+  {location
+    ? `📍 Location shared: ${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`
+    : "⚠️ Location unavailable — enable GPS for full emergency support."}
 </p>
 
   </div>

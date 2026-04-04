@@ -1,55 +1,140 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { API_ENDPOINTS, getHeaders } from "../services/apiConfig.js";
 
 export default function CommunityReports() {
   const navigate = useNavigate();
 
   const [reports, setReports] = useState([]);
-  const [message, setMessage] = useState("");
-  const [filter, setFilter] = useState("All");
+  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState("");
+  const [reportType, setReportType] = useState("safety-concern");
+  const [severity, setSeverity] = useState("medium");
+  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const reportTypes = [
+    "safety-concern",
+    "incident",
+    "scam-alert",
+    "missing-person",
+    "other",
+  ];
+  const severityLevels = ["low", "medium", "high"];
 
   // ✅ Fetch reports from backend
   useEffect(() => {
-    axios.get("http://localhost:5000/api/reports").then((res) => {
-      setReports(res.data);
-    });
+    fetchReports();
   }, []);
 
-  // ✅ Add new report
-  const addReport = () => {
-    if (!message.trim()) return;
-
-    axios
-      .post("http://localhost:5000/api/reports", {
-        author: "You",
-        text: message,
-        type: "Unsafe Area",
-        time: "Just now",
-        likes: 0,
-        liked: false,
-      })
-      .then((res) => {
-        setReports((prev) => [res.data, ...prev]);
-        setMessage("");
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(API_ENDPOINTS.REPORTS_LIST, {
+        headers: getHeaders(),
       });
+      const data = await response.json();
+      if (data.success) {
+        setReports(data.data || []);
+      } else {
+        setError(data.message || "Failed to fetch reports");
+      }
+    } catch (err) {
+      setError("Error fetching reports: " + err.message);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ✅ Like handler (prevent multiple likes)
-  const handleLike = (index) => {
-    const updated = [...reports];
+  // ✅ Add new report
+  const addReport = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !description.trim()) {
+      setError("Title and description are required");
+      return;
+    }
 
-    if (updated[index].liked) return;
+    try {
+      setLoading(true);
+      const response = await fetch(API_ENDPOINTS.REPORTS_CREATE, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          title,
+          description,
+          reportType,
+          severity,
+          isAnonymous,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReports((prev) => [data.data, ...prev]);
+        setTitle("");
+        setDescription("");
+        setReportType("safety-concern");
+        setSeverity("medium");
+        setError("");
+        setSuccessMsg("Report posted successfully!");
+        setTimeout(() => setSuccessMsg(""), 3000);
+      } else {
+        setError(data.message || "Failed to post report");
+      }
+    } catch (err) {
+      setError("Error posting report: " + err.message);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    updated[index].likes += 1;
-    updated[index].liked = true;
+  // ✅ Like handler
+  const handleLike = async (reportId) => {
+    try {
+      const response = await fetch(API_ENDPOINTS.REPORTS_LIKE(reportId), {
+        method: "POST",
+        headers: getHeaders(),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReports((prev) =>
+          prev.map((r) =>
+            r._id === reportId ? { ...r, likes: (r.likes || 0) + 1 } : r
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Error liking report:", err);
+    }
+  };
 
-    setReports(updated);
+  const deleteReport = async (reportId) => {
+    if (!window.confirm("Are you sure you want to delete this report?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.REPORTS_DELETE(reportId), {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReports((prev) => prev.filter((r) => r._id !== reportId));
+        setSuccessMsg("Report deleted successfully!");
+        setTimeout(() => setSuccessMsg(""), 3000);
+      }
+    } catch (err) {
+      setError("Error deleting report: " + err.message);
+    }
   };
 
   return (
     <div style={container}>
-      <h1 style={title}>Community Safety Reports</h1>
+      <h1 style={pageTitle}>Community Safety Reports</h1>
       <p style={subtitle}>
         Real experiences shared by travelers & locals
       </p>
@@ -58,91 +143,166 @@ export default function CommunityReports() {
         Reports help others avoid unsafe places, scams, and risky situations.
       </p>
 
-      {/* Filters */}
-      <div style={filters}>
-        {["All", "Unsafe Area", "Crowd Alert", "Scam Warning"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              ...filterBtn,
-              background:
-                filter === f
-                  ? "rgba(255,255,255,0.35)"
-                  : "rgba(255,255,255,0.15)",
-            }}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
+      {error && <div style={messageBox}>{error}</div>}
+      {successMsg && <div style={{ ...messageBox, background: "rgba(34,197,94,0.9)" }}>{successMsg}</div>}
 
-      {/* Add Report */}
-      <div style={form}>
-        <textarea
-          placeholder="Share your experience, warning, or safety tip..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          style={textarea}
+      {/* Add Report Form */}
+      <form onSubmit={addReport} style={form}>
+        <h3 style={formTitle}>Share Your Experience</h3>
+
+        <input
+          placeholder="Report Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={input}
+          disabled={loading}
         />
 
+        <textarea
+          placeholder="Describe your experience or safety concern in detail..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          style={textarea}
+          disabled={loading}
+        />
+
+        <div style={rowStyle}>
+          <div style={formGroup}>
+            <label>Report Type</label>
+            <select
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+              style={input}
+              disabled={loading}
+            >
+              {reportTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type
+                    .split("-")
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(" ")}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={formGroup}>
+            <label>Severity Level</label>
+            <select
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value)}
+              style={input}
+              disabled={loading}
+            >
+              {severityLevels.map((level) => (
+                <option key={level} value={level}>
+                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div style={checkboxGroup}>
+          <input
+            type="checkbox"
+            checked={isAnonymous}
+            onChange={(e) => setIsAnonymous(e.target.checked)}
+            id="anonymous"
+            disabled={loading}
+          />
+          <label htmlFor="anonymous">Post anonymously</label>
+        </div>
+
         <button
-          onClick={addReport}
+          type="submit"
           style={{
             ...postBtn,
-            opacity: message ? 1 : 0.6,
-            cursor: message ? "pointer" : "not-allowed",
+            opacity: title && description && !loading ? 1 : 0.6,
+            cursor: title && description && !loading ? "pointer" : "not-allowed",
           }}
+          disabled={loading}
         >
-          Post Report
+          {loading ? "Posting..." : "Post Report"}
         </button>
-      </div>
+      </form>
 
       {/* Reports List */}
       <div style={list}>
-        {reports
-          .filter((r) => filter === "All" || r.type === filter)
-          .map((r, i) => (
-            <div
-              key={i}
-              style={card}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow =
-                  "0 25px 60px rgba(0,0,0,0.35)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow =
-                  "0 20px 40px rgba(0,0,0,0.25)";
-              }}
-            >
-              <span style={tag}>{r.type}</span>
+        {loading && reports.length === 0 ? (
+          <p style={{ textAlign: "center", opacity: 0.8 }}>
+            Loading reports...
+          </p>
+        ) : reports.length === 0 ? (
+          <p style={{ textAlign: "center", opacity: 0.8 }}>
+            No reports yet. Be the first to share your experience!
+          </p>
+        ) : (
+          reports.map((r) => {
+            const reportDate = new Date(r.reportedAt || r.createdAt);
+            const formattedTime = reportDate.toLocaleDateString() + " " + reportDate.toLocaleTimeString();
 
-              <p style={text}>{r.text}</p>
+            return (
+              <div
+                key={r._id}
+                style={{
+                  ...card,
+                  borderLeft:
+                    r.severity === "high"
+                      ? "4px solid #ef4444"
+                      : r.severity === "medium"
+                      ? "4px solid #facc15"
+                      : "4px solid #22c55e",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 25px 60px rgba(0,0,0,0.35)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow =
+                    "0 20px 40px rgba(0,0,0,0.25)";
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={tag}>{r.reportType?.replace(/-/g, " ").toUpperCase()}</span>
+                    <h3 style={cardTitle}>{r.title}</h3>
+                    <p style={text}>{r.description}</p>
+                  </div>
+                  <div style={{ textAlign: "right", marginLeft: "10px" }}>
+                    {!r.isAnonymous && r.userId ? (
+                      <p style={author}>{r.userId.firstName} {r.userId.lastName}</p>
+                    ) : (
+                      <p style={author}>Anonymous</p>
+                    )}
+                  </div>
+                </div>
 
-              <div style={footer}>
-                <span style={author}>{r.author}</span>
+                <div style={footer}>
+                  <span style={time}>⏱ {formattedTime}</span>
 
-                <button
-                  style={{
-                    ...likeBtn,
-                    opacity: r.liked ? 0.6 : 1,
-                    cursor: r.liked ? "not-allowed" : "pointer",
-                  }}
-                  onClick={() => handleLike(i)}
-                >
-                  👍 {r.likes}
-                </button>
+                  <button
+                    style={likeBtn}
+                    onClick={() => handleLike(r._id)}
+                  >
+                    👍 {r.likes || 0}
+                  </button>
 
-                <span style={time}>⏱ {r.time}</span>
+                  {!r.isAnonymous && (
+                    <button
+                      style={deleteBtn}
+                      onClick={() => deleteReport(r._id)}
+                    >
+                      🗑 Delete
+                    </button>
+                  )}
+                </div>
               </div>
-
-              <p style={microText}>
-                👍 Shared to keep travelers safe
-              </p>
-            </div>
-          ))}
+            );
+          })
+        )}
       </div>
 
       <button style={backBtn} onClick={() => navigate("/home")}>
@@ -151,6 +311,69 @@ export default function CommunityReports() {
     </div>
   );
 }
+
+const messageBox = {
+  maxWidth: "720px",
+  margin: "0 auto 20px",
+  padding: "12px",
+  borderRadius: "8px",
+  background: "rgba(239, 68, 68, 0.9)",
+  textAlign: "center",
+  fontSize: "14px",
+};
+
+const formGroup = {
+  flex: 1,
+};
+
+const rowStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "15px",
+  marginBottom: "15px",
+};
+
+const checkboxGroup = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  marginBottom: "15px",
+  opacity: 0.9,
+};
+
+const input = {
+  width: "100%",
+  padding: "12px",
+  borderRadius: "8px",
+  border: "2px solid rgba(255,255,255,0.3)",
+  background: "rgba(0,0,0,0.3)",
+  color: "white",
+  fontSize: "14px",
+  marginBottom: "12px",
+  boxSizing: "border-box",
+};
+
+const formTitle = {
+  marginBottom: "15px",
+  fontSize: "18px",
+  fontWeight: "600",
+};
+
+const cardTitle = {
+  fontSize: "16px",
+  fontWeight: "600",
+  margin: "8px 0",
+};
+
+const deleteBtn = {
+  border: "none",
+  background: "rgba(239,68,68,0.6)",
+  color: "white",
+  padding: "4px 10px",
+  borderRadius: "12px",
+  fontSize: "12px",
+  cursor: "pointer",
+};
 
 /* ---------- STYLES ---------- */
 
@@ -163,7 +386,7 @@ const container = {
   color: "white",
 };
 
-const title = {
+const pageTitle = {
   textAlign: "center",
   fontSize: 32,
   fontWeight: 700,
@@ -180,23 +403,6 @@ const helperText = {
   fontSize: 12,
   opacity: 0.8,
   marginBottom: 26,
-};
-
-const filters = {
-  display: "flex",
-  justifyContent: "center",
-  gap: 10,
-  marginBottom: 20,
-  flexWrap: "wrap",
-};
-
-const filterBtn = {
-  fontSize: 12,
-  padding: "6px 14px",
-  borderRadius: 20,
-  border: "none",
-  color: "white",
-  cursor: "pointer",
 };
 
 const form = {
@@ -220,6 +426,7 @@ const textarea = {
   background: "#1f2937",
   color: "white",
   marginBottom: 14,
+  boxSizing: "border-box",
 };
 
 const postBtn = {
@@ -230,6 +437,7 @@ const postBtn = {
   background: "#22c55e",
   color: "white",
   fontWeight: 600,
+  cursor: "pointer",
 };
 
 const list = {
@@ -269,6 +477,7 @@ const footer = {
   alignItems: "center",
   fontSize: 11,
   opacity: 0.85,
+  gap: "10px",
 };
 
 const author = {
@@ -284,12 +493,7 @@ const likeBtn = {
   padding: "4px 10px",
   borderRadius: 12,
   fontSize: 12,
-};
-
-const microText = {
-  fontSize: 11,
-  opacity: 0.75,
-  marginTop: 10,
+  cursor: "pointer",
 };
 
 const backBtn = {

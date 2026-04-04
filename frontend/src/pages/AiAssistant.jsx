@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useLocation } from "../context/LocationContext";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export default function AiAssistant() {
   const navigate = useNavigate();
+  const { location } = useLocation();
 
   const [messages, setMessages] = useState([
     {
       from: "bot",
-      text: "Hello 👋 I'm your Travel Safety Assistant powered by Gemini AI. Ask me anything about staying safe while travelling!",
+      text: "Hello 👋 I'm your Travel Safety Assistant powered by Gemini AI. Ask me anything about staying safe while travelling! If you need help finding nearby services or triggering an SOS, just ask.",
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -34,6 +36,30 @@ export default function AiAssistant() {
     // Add current user message
     contents.push({ role: "user", parts: [{ text: userInput }] });
 
+    const locationContext = location
+      ? `The user's current location is Latitude: ${location.lat}, Longitude: ${location.lng}.`
+      : "The user's location is currently unavailable.";
+
+    const systemPrompt = `You are a highly helpful and smart Travel Safety Assistant for the Tourist Safety App. 
+    Give concise, practical advice on staying safe while travelling. Cover topics like lost documents, scams, emergency contacts, safe areas, travel advisories, and general safety tips. Keep answers friendly, brief (2-4 sentences), and actionable.
+    
+    ${locationContext}
+
+    IMPORTANT INSTRUCTIONS:
+    1. If the user asks for nearby services (Hospitals, Police Stations, Blood Banks, etc.), use their location to suggest real nearby places or advise them to check the [Safety Map](/map) or [Emergency Contacts](/contacts).
+    2. If the user asks about blood donations or blood blanks, suggest they visit the [Blood Request](/blood-request) or [Blood Donors](/blood-donors) page.
+    3. If the user is in an emergency or asks how to trigger an SOS, provide clear, step-by-step instructions. Tell them to press the [SOS Alert](/sos) button immediately.
+    4. You can route users to different parts of the application using markdown links. ONLY use these exact links:
+       - [Safety Map](/map)
+       - [SOS Alert](/sos)
+       - [Emergency Contacts](/contacts)
+       - [Community Reports](/community)
+       - [Evidence Capture](/evidence)
+       - [Blood Request](/blood-request)
+       - [Blood Donors](/blood-donors)
+    
+    Do not use any other markdown formatting besides these links (no bolding, no italics, etc). Just text and links.`;
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -41,16 +67,12 @@ export default function AiAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system_instruction: {
-            parts: [
-              {
-                text: "You are a helpful Travel Safety Assistant. Give concise, practical advice on staying safe while travelling. Cover topics like lost documents, scams, emergency contacts, safe areas, travel advisories, and general safety tips. Keep answers friendly, brief (2-4 sentences), and actionable.",
-              },
-            ],
+            parts: [{ text: systemPrompt }],
           },
           contents,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 200,
+            maxOutputTokens: 250,
           },
         }),
       }
@@ -104,6 +126,43 @@ export default function AiAssistant() {
     }
   };
 
+  // ✅ PARSE MARKDOWN LINKS
+  const renderMessageText = (text) => {
+    // Regex to match [Link Text](/path)
+    const linkRegex = /\[(.*?)\]\((.*?)\)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+
+      parts.push(
+        <Link
+          key={match.index}
+          to={match[2]}
+          style={{
+            color: "#22c55e",
+            textDecoration: "underline",
+            fontWeight: 600,
+          }}
+        >
+          {match[1]}
+        </Link>
+      );
+
+      lastIndex = linkRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts;
+  };
+
   return (
     <div style={container}>
       {/* Header */}
@@ -136,8 +195,8 @@ export default function AiAssistant() {
             className="message-animate"
             style={msg.from === "user" ? userBubble : botBubble}
           >
-            <div>{msg.text}</div>
-            <p style={timeText}>{msg.time}</p>
+            <div>{renderMessageText(msg.text)}</div>
+            <p style={msg.from === "user" ? timeText : botTimeText}>{msg.time}</p>
           </div>
         ))}
 
@@ -268,6 +327,13 @@ const timeText = {
   opacity: 0.7,
   marginTop: 4,
   textAlign: "right",
+};
+
+const botTimeText = {
+  fontSize: 10,
+  opacity: 0.7,
+  marginTop: 4,
+  textAlign: "left",
 };
 
 const typingBubble = {

@@ -1,103 +1,87 @@
-import express from "express";
-import cors from "cors";
-import alertsRoutes from "./alerts.js";
-import reportsRoutes from "./reports.js";
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import connectDB from './config/database.js';
+import errorHandler from './middleware/errorHandler.js';
+
+// Import Routes
+import authRoutes from './routes/authRoutes.js';
+import trustedContactRoutes from './routes/trustedContactRoutes.js';
+import evidenceRoutes from './routes/evidenceRoutes.js';
+import bloodDonorRoutes from './routes/bloodDonorRoutes.js';
+import bloodBankRoutes from './routes/bloodBankRoutes.js';
+import bloodRequestRoutes from './routes/bloodRequestRoutes.js';
+import sosAlertRoutes from './routes/sosAlertRoutes.js';
+import alertRoutes from './routes/alertRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// Middleware
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-/* Existing Routes */
-app.use("/api/alerts", alertsRoutes);
-app.use("/api/reports", reportsRoutes);
+// Static files for uploads
+app.use('/uploads', express.static('uploads'));
 
-/* ---------------- CONTACTS API ---------------- */
-
-let contacts = [
-  { id: 1, name: "Mom", phone: "+91 98765 43210", primary: true },
-  { id: 2, name: "Best Friend", phone: "+91 91234 56789", primary: false },
-];
-
-// Get all contacts
-app.get("/api/contacts", (req, res) => {
-  res.json(contacts);
-});
-
-// Add new contact
-app.post("/api/contacts", (req, res) => {
-  const newContact = {
-    id: Date.now(),
-    name: req.body.name,
-    phone: req.body.phone,
-    primary: false,
-  };
-
-  contacts.push(newContact);
-  res.json(newContact);
-});
-
-/* ---------------- BLOOD EMERGENCY API ---------------- */
-
-let donors = [];
-let bloodRequests = [];
-
-// Register Blood Donor
-app.post("/api/blood/donor/register", (req, res) => {
-  const donor = {
-    id: Date.now(),
-    name: req.body.name,
-    bloodGroup: req.body.bloodGroup,
-    city: req.body.city,
-    phone: req.body.phone,
-  };
-
-  donors.push(donor);
-
+// Health Check Route
+app.get('/', (req, res) => {
   res.json({
-    message: "Donor registered successfully",
-    donor,
+    success: true,
+    message: '🚀 Tourist Safety Backend is running!',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Request Blood
-app.post("/api/blood/request", (req, res) => {
-  const request = {
-    id: Date.now(),
-    name: req.body.name,
-    bloodGroup: req.body.bloodGroup,
-    location: req.body.location,
-    phone: req.body.phone,
-  };
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/contacts', trustedContactRoutes);
+app.use('/api/evidence', evidenceRoutes);
+app.use('/api/blood/donors', bloodDonorRoutes);
+app.use('/api/blood/banks', bloodBankRoutes);
+app.use('/api/blood/requests', bloodRequestRoutes);
+app.use('/api/sos-alerts', sosAlertRoutes);
+app.use('/api/alerts', alertRoutes);
+app.use('/api/reports', reportRoutes);
 
-  bloodRequests.push(request);
-
-  res.json({
-    message: "Blood request submitted",
-    request,
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
   });
 });
 
-// Get donors by blood group
-app.get("/api/blood/donors/:group", (req, res) => {
-  const group = req.params.group;
+// Global Error Handler
+app.use(errorHandler);
 
-  const result = donors.filter(
-    (donor) => donor.bloodGroup === group
-  );
+// Connect to Database and Start Server
+const startServer = async () => {
+  try {
+    await connectDB();
 
-  res.json(result);
-});
+    app.listen(PORT, () => {
+      console.log(`✅ Server running at http://localhost:${PORT}`);
+      console.log(`📝 API Documentation: http://localhost:${PORT}/api`);
+      console.log(`🗂️ Uploads Directory: ./uploads`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
 
-/* ---------------- TEST ROUTE ---------------- */
+startServer();
 
-app.get("/", (req, res) => {
-  res.send("🚀 Tourist Safety Backend is running!");
-});
-
-/* ---------------- START SERVER ---------------- */
-
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-});
+export default app;
