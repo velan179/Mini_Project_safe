@@ -17,6 +17,7 @@ import EmergencyContacts from "../pages/EmergencyContacts";
 import AiAssistant from "../pages/AiAssistant";
 import CommunityReports from "../pages/CommunityReports";
 import EvidenceCapture from "../pages/EvidenceCapture";
+import EvidenceCamera from "../pages/EvidenceCamera";
 
 /* Blood Emergency Feature Pages */
 import BloodRequest from "../pages/BloodRequest";
@@ -47,6 +48,7 @@ export default function AppRouter() {
           <Route path="/community" element={<ProtectedRoute><CommunityReports /></ProtectedRoute>} />
 
           <Route path="/evidence" element={<EvidenceCapture />} />
+          <Route path="/evidence/camera" element={<EvidenceCamera />} />
 
           {/* Blood Emergency Routes */}
           <Route path="/blood-request" element={<ProtectedRoute><BloodRequest /></ProtectedRoute>} />

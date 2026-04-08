@@ -4,13 +4,17 @@ import { useLocation } from "../context/LocationContext";
 
 export default function Home() {
   const navigate = useNavigate();
-  const { location, locationError, locationLoading, requestLocation } =
-    useLocation();
+  const {
+    location,
+    locationError,
+    locationLoading,
+    requestLocation,
+    enableLocationAccess,
+  } = useLocation();
 
-  // ✅ Request GPS location automatically when the user lands on Home after login
   useEffect(() => {
     requestLocation();
-  }, []);
+  }, [requestLocation]);
 
   const cards = [
     {
@@ -70,14 +74,13 @@ export default function Home() {
     },
   ];
 
-  /* ---- Location banner ---- */
   const renderLocationBanner = () => {
     if (locationLoading) {
       return (
         <div style={locationBanner("rgba(255,255,255,0.15)")}>
           <span style={locationIconStyle}>📡</span>
           <div style={{ flex: 1 }}>
-            <p style={locationTitle}>Fetching your location…</p>
+            <p style={locationTitle}>Fetching your location...</p>
             <p style={locationSub}>
               Please allow location access when the browser prompts you.
             </p>
@@ -93,16 +96,19 @@ export default function Home() {
           <span style={locationIconStyle}>📍</span>
           <div style={{ flex: 1 }}>
             <p style={locationTitle}>
-              Location Active{" "}
-              <span style={badge}>✅ GPS</span>
+              Location Active <span style={badge}>✅ GPS</span>
             </p>
             <p style={locationSub}>
               Lat:&nbsp;<strong>{location.lat.toFixed(6)}</strong>
               &nbsp;&nbsp;Lng:&nbsp;<strong>{location.lng.toFixed(6)}</strong>
             </p>
-            <p style={{ ...locationSub, marginTop: 4, opacity: 0.7 }}>
-              Real-time safety services are active for your current position.
-            </p>
+            {(location.street || location.city || location.postcode) && (
+              <p style={locationSub}>
+                {location.street ? `${location.street}, ` : ""}
+                {location.city ? `${location.city}` : ""}
+                {location.postcode ? ` - ${location.postcode}` : ""}
+              </p>
+            )}
           </div>
           <button
             style={retryBtn}
@@ -125,9 +131,14 @@ export default function Home() {
             </p>
             <p style={locationSub}>{locationError}</p>
           </div>
-          <button style={retryBtn} onClick={requestLocation}>
-            🔄 Retry
-          </button>
+          <div style={locationActions}>
+            <button style={enableBtn} onClick={enableLocationAccess}>
+              Enable Access
+            </button>
+            <button style={retryBtn} onClick={requestLocation}>
+              🔄 Retry
+            </button>
+          </div>
         </div>
       );
     }
@@ -137,7 +148,6 @@ export default function Home() {
 
   return (
     <div style={container}>
-      {/* Header */}
       <div style={header}>
         <h1 style={title}>Welcome to TourSafe</h1>
         <p style={subtitle}>Your safety companion for confident travel</p>
@@ -146,10 +156,8 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Location Banner */}
       {renderLocationBanner()}
 
-      {/* Cards */}
       <div style={grid}>
         {cards.map((card, index) => (
           <div
@@ -172,9 +180,9 @@ export default function Home() {
               e.currentTarget.style.boxShadow =
                 "0 20px 40px rgba(0,0,0,0.25)";
             }}
-            onMouseDown={(e) =>
-              (e.currentTarget.style.transform = "scale(0.98)")
-            }
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = "scale(0.98)";
+            }}
           >
             <div style={iconStyle}>{card.icon}</div>
             <h3 style={cardTitle}>{card.title}</h3>
@@ -190,8 +198,6 @@ export default function Home() {
     </div>
   );
 }
-
-/* ---------- STYLES ---------- */
 
 const container = {
   minHeight: "100vh",
@@ -257,7 +263,6 @@ const cardDesc = {
   opacity: 0.9,
 };
 
-/* ---- Location banner styles ---- */
 const locationBanner = (bg) => ({
   display: "flex",
   alignItems: "center",
@@ -309,6 +314,25 @@ const retryBtn = {
   cursor: "pointer",
   fontSize: 13,
   flexShrink: 0,
+};
+
+const enableBtn = {
+  background: "#fef3c7",
+  border: "1px solid #fde68a",
+  color: "#7c2d12",
+  borderRadius: 30,
+  padding: "6px 14px",
+  cursor: "pointer",
+  fontSize: 13,
+  fontWeight: 600,
+  flexShrink: 0,
+};
+
+const locationActions = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const spinner = {

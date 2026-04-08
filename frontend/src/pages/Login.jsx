@@ -1,26 +1,40 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLocation } from "../context/LocationContext";
 
 export default function Login() {
   const navigate = useNavigate();
-const { login } = useAuth();
+  const { login } = useAuth();
+  const { enableLocationAccess } = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleLogin = (e) => {
-  e.preventDefault();
+  const handleLogin = async (e) => {
+    e.preventDefault();
 
-  if (email === "tourist@123" && password === "1234") {
-    login();            // ✅ VERY IMPORTANT
-    navigate("/home");  // ✅ GO TO DASHBOARD
-  } else {
-    setError("Invalid email or password");
-  }
-};
+    if (email === "tourist@123" && password === "1234") {
+      login();
+      await enableLocationAccess();
+      navigate("/home");
+    } else {
+      setError("Invalid email or password");
+    }
+  };
 
+  const handleEmailFocus = (e) => {
+    setEmail("tourist@123");
+    setError("");
+    e.target.style.boxShadow = "0 0 0 3px rgba(255,255,255,0.6)";
+  };
+
+  const handlePasswordFocus = (e) => {
+    setPassword("1234");
+    setError("");
+    e.target.style.boxShadow = "0 0 0 3px rgba(255,255,255,0.6)";
+  };
 
   return (
     <div style={container}>
@@ -32,58 +46,53 @@ const { login } = useAuth();
 
         <form onSubmit={handleLogin}>
           <input
-  type="text"
-  placeholder="Email"
-  value={email}
-  onChange={(e) => setEmail(e.target.value)}
-  style={input}
-  onFocus={(e) =>
-    (e.target.style.boxShadow = "0 0 0 3px rgba(255,255,255,0.6)")
-  }
-  onBlur={(e) => (e.target.style.boxShadow = "none")}
-/>
+            type="text"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={input}
+            onFocus={handleEmailFocus}
+            onBlur={(e) => (e.target.style.boxShadow = "none")}
+          />
 
-         <input
-  type="password"
-  placeholder="Password"
-  value={password}
-  onChange={(e) => setPassword(e.target.value)}
-  style={input}
-  onFocus={(e) =>
-    (e.target.style.boxShadow = "0 0 0 3px rgba(255,255,255,0.6)")
-  }
-  onBlur={(e) => (e.target.style.boxShadow = "none")}
-/>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={input}
+            onFocus={handlePasswordFocus}
+            onBlur={(e) => (e.target.style.boxShadow = "none")}
+          />
 
           {error && <p style={errorText}>{error}</p>}
 
           <button
-  type="submit"
-  style={button}
-  onMouseEnter={(e) => (e.target.style.transform = "translateY(-2px)")}
-  onMouseLeave={(e) => (e.target.style.transform = "translateY(0)")}
-  onMouseDown={(e) => (e.target.style.transform = "scale(0.98)")}
->
-  Login
-</button>
-
+            type="submit"
+            style={button}
+            onMouseEnter={(e) => (e.target.style.transform = "translateY(-2px)")}
+            onMouseLeave={(e) => (e.target.style.transform = "translateY(0)")}
+            onMouseDown={(e) => (e.target.style.transform = "scale(0.98)")}
+          >
+            Login
+          </button>
         </form>
+
         <div
-  style={{
-    height: 1,
-    background: "rgba(255,255,255,0.3)",
-    margin: "24px 0 16px",
-  }}
-></div>
+          style={{
+            height: 1,
+            background: "rgba(255,255,255,0.3)",
+            margin: "24px 0 16px",
+          }}
+        ></div>
+
         <p style={hint}>
-          Demo login → <strong>tourist@123 / 1234</strong>
+          Demo login {"->"} <strong>tourist@123 / 1234</strong>
         </p>
       </div>
     </div>
   );
 }
-
-/* ---------- STYLES ---------- */
 
 const container = {
   height: "100vh",
@@ -116,7 +125,6 @@ const card = {
   textAlign: "center",
 };
 
-
 const title = {
   fontSize: 28,
   fontWeight: 600,
@@ -139,11 +147,9 @@ const input = {
   fontSize: 15,
   boxSizing: "border-box",
   background: "#eef4ff",
-  color: "#0f172a",          // ✅ ADD THIS LINE
+  color: "#0f172a",
   transition: "box-shadow 0.25s ease, transform 0.2s ease",
 };
-
-
 
 const button = {
   width: "100%",
@@ -159,7 +165,6 @@ const button = {
   transition: "all 0.25s ease",
   boxShadow: "0 12px 25px rgba(0,0,0,0.2)",
 };
-
 
 const errorText = {
   color: "#fecaca",
