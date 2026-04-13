@@ -55,6 +55,10 @@ NODE_ENV=development
 # CORS Configuration
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 
+# Gemini AI Assistant
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
+
 # File Upload Configuration
 MAX_FILE_SIZE=52428800
 UPLOAD_PATH=./uploads

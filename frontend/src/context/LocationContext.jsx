@@ -5,13 +5,16 @@ import {
   useCallback,
   useEffect,
 } from "react";
+import { useAuth } from "./AuthContext";
 
 const LocationContext = createContext();
 
 export function LocationProvider({ children }) {
+  const { isAuthenticated } = useAuth();
   const [location, setLocation] = useState(null);       // { lat, lng }
   const [locationError, setLocationError] = useState(null);   // string | null
   const [locationLoading, setLocationLoading] = useState(false);
+  const [permissionState, setPermissionState] = useState(null);
 
   const resolveLocationDetails = useCallback(async (lat, lng) => {
     try {
@@ -80,6 +83,7 @@ export function LocationProvider({ children }) {
           lng,
           ...details,
         });
+        setLocationError(null);
         setLocationLoading(false);
       },
       (err) => {
@@ -125,6 +129,7 @@ export function LocationProvider({ children }) {
       const permission = await navigator.permissions.query({
         name: "geolocation",
       });
+      setPermissionState(permission.state);
 
       if (permission.state === "denied") {
         setLocationError(
@@ -140,6 +145,22 @@ export function LocationProvider({ children }) {
   }, [requestLocation]);
 
   useEffect(() => {
+    if (!isAuthenticated || location || locationLoading) {
+      return;
+    }
+
+    if (permissionState === "denied") {
+      setLocationError(
+        "Location access is blocked. Please enable location permission for this site in your browser settings. Your current location will load automatically once access is allowed."
+      );
+      return;
+    }
+
+    setLocationError(null);
+    enableLocationAccess();
+  }, [isAuthenticated, location, locationLoading, permissionState, enableLocationAccess]);
+
+  useEffect(() => {
     if (!navigator.permissions?.query) {
       return undefined;
     }
@@ -151,10 +172,17 @@ export function LocationProvider({ children }) {
         permissionStatus = await navigator.permissions.query({
           name: "geolocation",
         });
+        setPermissionState(permissionStatus.state);
 
         permissionStatus.onchange = () => {
+          setPermissionState(permissionStatus.state);
+
           if (permissionStatus.state === "granted") {
             requestLocation();
+          } else if (permissionStatus.state === "denied") {
+            setLocationError(
+              "Location access is blocked. Please enable location permission for this site in your browser settings. Your current location will load automatically once access is allowed."
+            );
           }
         };
       } catch (error) {

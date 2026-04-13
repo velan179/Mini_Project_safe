@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useLocation } from "../context/LocationContext";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { enableLocationAccess } = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,7 +15,6 @@ export default function Login() {
 
     if (email === "tourist@123" && password === "1234") {
       login();
-      await enableLocationAccess();
       navigate("/home");
     } else {
       setError("Invalid email or password");

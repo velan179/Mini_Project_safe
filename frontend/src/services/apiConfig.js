@@ -100,6 +100,9 @@ export const API_ENDPOINTS = {
   REPORTS_LIKE: (id) => `${API_BASE_URL}/reports/${id}/like`,
   REPORTS_DELETE: (id) => `${API_BASE_URL}/reports/${id}`,
   REPORTS_STATS: `${API_BASE_URL}/reports/stats`,
+
+  // AI Assistant
+  AI_CHAT: `${API_BASE_URL}/assistant/chat`,
 };
 
 // Utility function for API calls

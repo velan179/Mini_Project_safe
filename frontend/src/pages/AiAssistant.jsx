@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useLocation } from "../context/LocationContext";
-
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+import { apiCall, API_ENDPOINTS } from "../services/apiConfig";
 
 export default function AiAssistant() {
   const navigate = useNavigate();
@@ -25,66 +24,20 @@ export default function AiAssistant() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
-  // ✅ REAL Gemini API CALL
+  // ✅ Backend AI service call
   const getAIReply = async (userInput, chatHistory) => {
-    // Build Gemini conversation history
-    const contents = chatHistory.map((msg) => ({
-      role: msg.from === "user" ? "user" : "model",
-      parts: [{ text: msg.text }],
-    }));
+    const response = await apiCall("POST", API_ENDPOINTS.AI_CHAT, {
+      message: userInput,
+      history: chatHistory,
+      location: location
+        ? {
+            lat: location.lat,
+            lng: location.lng,
+          }
+        : null,
+    });
 
-    // Add current user message
-    contents.push({ role: "user", parts: [{ text: userInput }] });
-
-    const locationContext = location
-      ? `The user's current location is Latitude: ${location.lat}, Longitude: ${location.lng}.`
-      : "The user's location is currently unavailable.";
-
-    const systemPrompt = `You are a highly helpful and smart Travel Safety Assistant for the Tourist Safety App. 
-    Give concise, practical advice on staying safe while travelling. Cover topics like lost documents, scams, emergency contacts, safe areas, travel advisories, and general safety tips. Keep answers friendly, brief (2-4 sentences), and actionable.
-    
-    ${locationContext}
-
-    IMPORTANT INSTRUCTIONS:
-    1. If the user asks for nearby services (Hospitals, Police Stations, Blood Banks, etc.), use their location to suggest real nearby places or advise them to check the [Safety Map](/map) or [Emergency Contacts](/contacts).
-    2. If the user asks about blood donations or blood blanks, suggest they visit the [Blood Request](/blood-request) or [Blood Donors](/blood-donors) page.
-    3. If the user is in an emergency or asks how to trigger an SOS, provide clear, step-by-step instructions. Tell them to press the [SOS Alert](/sos) button immediately.
-    4. You can route users to different parts of the application using markdown links. ONLY use these exact links:
-       - [Safety Map](/map)
-       - [SOS Alert](/sos)
-       - [Emergency Contacts](/contacts)
-       - [Community Reports](/community)
-       - [Evidence Capture](/evidence)
-       - [Blood Request](/blood-request)
-       - [Blood Donors](/blood-donors)
-    
-    Do not use any other markdown formatting besides these links (no bolding, no italics, etc). Just text and links.`;
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemPrompt }],
-          },
-          contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 250,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error?.message || "Gemini API error");
-    }
-
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text.trim();
+    return response?.data?.reply || "I couldn't generate a reply right now.";
   };
 
   // ✅ SEND MESSAGE

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "../context/LocationContext";
 
@@ -11,10 +10,6 @@ export default function Home() {
     requestLocation,
     enableLocationAccess,
   } = useLocation();
-
-  useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
 
   const cards = [
     {
@@ -65,6 +60,18 @@ export default function Home() {
       desc: "View and share safety experiences with others.",
       icon: "🗣️",
       path: "/community",
+    },
+    {
+      title: "Blood Banks",
+      desc: "Find blood banks and search by city in emergencies.",
+      icon: "🏥",
+      path: "/blood-banks",
+    },
+    {
+      title: "Blood Donors",
+      desc: "Search registered donors by blood group and location.",
+      icon: "🩸",
+      path: "/blood-donors",
     },
     {
       title: "Trusted Contacts",
@@ -143,7 +150,21 @@ export default function Home() {
       );
     }
 
-    return null;
+    return (
+      <div style={locationBanner("rgba(255,255,255,0.15)")}>
+        <span style={locationIconStyle}>📍</span>
+        <div style={{ flex: 1 }}>
+          <p style={locationTitle}>Location is off</p>
+          <p style={locationSub}>
+            Enable it to show nearby safety details, alerts, and live position
+            data.
+          </p>
+        </div>
+        <button style={enableBtn} onClick={enableLocationAccess}>
+          Enable Location
+        </button>
+      </div>
+    );
   };
 
   return (

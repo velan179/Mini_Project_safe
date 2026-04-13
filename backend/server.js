@@ -14,6 +14,7 @@ import bloodRequestRoutes from './routes/bloodRequestRoutes.js';
 import sosAlertRoutes from './routes/sosAlertRoutes.js';
 import alertRoutes from './routes/alertRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import assistantRoutes from './routes/assistantRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -54,6 +55,7 @@ app.use('/api/blood/requests', bloodRequestRoutes);
 app.use('/api/sos-alerts', sosAlertRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/assistant', assistantRoutes);
 
 // 404 Handler
 app.use((req, res) => {

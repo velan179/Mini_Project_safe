@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "../context/LocationContext";
 
 export default function Sos() {
   const [panic, setPanic] = useState(false);
-  const { location } = useLocation();
+  const { location, enableLocationAccess } = useLocation();
+
+  useEffect(() => {
+    if (panic && !location) {
+      enableLocationAccess();
+    }
+  }, [panic, location, enableLocationAccess]);
 
   return (
     <div style={container(panic)}>
